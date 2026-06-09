@@ -55,8 +55,19 @@ async function fetchOneJohnsonEntry(index = 0) {
 
     await page.goto(JOHNSON_RANDOM_URL, { waitUntil: 'networkidle2', timeout: 45000 });
 
-    // The page is JavaScript-driven. Give the random-entry script a moment to populate the result.
-    await page.waitForTimeout(2500);
+    // The page is JavaScript-driven. The /views/word.php page loads the
+    // random-word interface; in headless Chromium we explicitly press its
+    // Random Word control rather than assuming the first load will populate it.
+    await page.waitForTimeout(1500);
+
+    await page.evaluate(() => {
+      const textOf = (el) => (el?.innerText || el?.textContent || '').trim();
+      const candidates = Array.from(document.querySelectorAll('button, input[type=button], input[type=submit], a, [role=button]'));
+      const randomControl = candidates.find(el => /random\s+word|random/i.test(textOf(el) || el.value || el.getAttribute('aria-label') || ''));
+      if (randomControl) randomControl.click();
+    });
+
+    await page.waitForTimeout(5000);
 
     const data = await page.evaluate((defaultImage) => {
       const visible = (el) => {
